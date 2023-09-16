@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Roles
+
+Resources:
+
+  FargateAccessRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                "ecs-tasks.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonElasticFileSystemsUtils
+
+  FargateAccessPolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: !Sub ${AWS::StackName}-FargateAccessPolicy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "elasticfilesystem:*"
+            Resource:
+              - "*"
+      Roles:
+        - !Ref FargateAccessRole
+
+Outputs:
+  FargateAccessRoleOutput:
+    Export:
+      Name: !Sub ${AWS::StackName}:FargateAccessRole
+    Value:
+      Fn::GetAtt: [FargateAccessRole, Arn]

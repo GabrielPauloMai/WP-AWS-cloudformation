@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: ' 2010-09-09'
+
+Parameters:
+
+  EnvironmentName:
+    Type: String
+
+  LoadBalancerStackName:
+    Type: String
+
+  DBUsername:
+    Type: String
+
+  DBPassword:
+    Type: String
+
+  DBName:
+    Type: String
+
+Resources:
+
+  DataBaseClusterSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Access to the wordpress blog RDS
+      VpcId: 
+        Fn::ImportValue: !Sub '${EnvironmentName}:VpcId'
+      SecurityGroupEgress:
+        IpProtocol: -1
+        SourceSecurityGroupId: 
+          Fn::ImportValue: !Sub ${LoadBalancerStackName}:ContainerSG
+      SecurityGroupIngress:
+        IpProtocol: -1
+        SourceSecurityGroupId: 
+          Fn::ImportValue: !Sub ${LoadBalancerStackName}:ContainerSG
+          
+  RDSCluster:
+    Type: 'AWS::RDS::DBCluster'
+    Properties:
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBClusterIdentifier: !Ref DbName
+      DatabaseName: !Ref DbName
+      DBSubnetGroupName:  !Join
+        - '-'
+        - - 'default'
+          - Fn::ImportValue: !Sub '${EnvironmentName}:VpcId'
+      Engine: aurora
+      EngineVersion: 5.6.10a
+      EngineMode: serverless
+      ScalingConfiguration:
+        AutoPause: true
+        MinCapacity: 4
+        MaxCapacity: 32
+        SecondsUntilAutoPause: 1000
+      VpcSecurityGroupIds: 
+        - !GetAtt DataBaseClusterSG.GroupId
+
+Outputs:
+  HostAddress:
+    Description: Wordpress blog host address
+    Value: !GetAtt RDSCluster.Endpoint.Address
+    Export:
+      Name: !Sub ${AWS::StackName}:HostAddress
