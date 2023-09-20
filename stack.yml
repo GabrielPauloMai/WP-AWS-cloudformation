@@ -39,43 +39,6 @@ Mappings:
 
 Resources:
 
-  #####VPC########
-
-  #   Definição da VPC (Virtual Private Cloud)
-  # MyVPC:
-  #   Type: "AWS::EC2::VPC"
-  #   Properties:
-  #     EnableDnsSupport: true     # Habilita suporte a DNS na VPC
-  #     EnableDnsHostnames: true   # Habilita a atribuição automática de nomes de host DNS
-
-  # Gateway de Internet para permitir conectividade com a Internet
-  # InternetGateway:
-  #   Type: "AWS::EC2::InternetGateway"
-
-  # # Anexa o Gateway de Internet à VPC
-  # AttachGateway:
-  #   Type: "AWS::EC2::VPCGatewayAttachment"
-  #   Properties:
-  #     VpcId: !Ref MyVPC
-  #     InternetGatewayId: !Ref InternetGateway
-
-  # Sub-rede pública 1 na Zona de Disponibilidade 'us-east-1a'
-  # PublicSubnet1:
-  #   Type: AWS::EC2::Subnet
-  #   Properties:
-  #     VpcId: !Ref MyVPC
-  #     CidrBlock: "10.0.0.0/24"   # Define o bloco de endereços IP da sub-rede
-  #     AvailabilityZone: "us-east-1a"  # Especifica a Zona de Disponibilidade
-
-  # # Sub-rede pública 2 na Zona de Disponibilidade 'us-east-1b'
-  # PublicSubnet2:
-  #   Type: AWS::EC2::Subnet
-  #   Properties:
-  #     VpcId: !Ref MyVPC
-  #     CidrBlock: "10.0.1.0/24"   # Define o bloco de endereços IP da sub-rede
-  #     AvailabilityZone: "us-east-1b"  # Especifica a Zona de Disponibilidade
-
-
   #####EFS########
   # Definição do sistema de arquivos EFS
   EFSFileSystem:
@@ -137,27 +100,27 @@ Resources:
   EcsSecurityGroupHTTPinbound:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Properties:
-      GroupId: !Ref EcsSecurityGroup  # Referência ao seu grupo de segurança ECS
+      GroupId: !Ref EcsSecurityGroup  # Referência ao grupo de segurança ECS
       IpProtocol: tcp
       FromPort: 80
       ToPort: 80
-      CidrIp: 0.0.0.0/0  # Permite tráfego HTTP de qualquer lugar (não recomendado para produção)
+      CidrIp: 0.0.0.0/0  # Permite tráfego HTTP de qualquer lugar
 
   # Regra de entrada SSH no grupo de segurança ECS
   EcsSecurityGroupSSHinbound:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Properties:
-      GroupId: !Ref EcsSecurityGroup  # Referência ao seu grupo de segurança ECS
+      GroupId: !Ref EcsSecurityGroup  # Referência ao grupo de segurança ECS
       IpProtocol: tcp
       FromPort: 22
       ToPort: 22
-      CidrIp: 0.0.0.0/0  # Permite tráfego SSH de qualquer lugar (não recomendado para produção)
+      CidrIp: 0.0.0.0/0  # Permite tráfego SSH de qualquer lugar
 
   # Regra de entrada para portas ALB no grupo de segurança ECS
   EcsSecurityGroupALBports:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Properties:
-      GroupId: !Ref EcsSecurityGroup  # Referência ao seu grupo de segurança ECS
+      GroupId: !Ref EcsSecurityGroup  # Referência ao grupo de segurança ECS
       IpProtocol: tcp
       FromPort: 31000
       ToPort: 61000
@@ -184,113 +147,118 @@ Resources:
           - "-ecs"
       ContainerDefinitions:
         - Name: wordpress
-          Cpu: "10"  # Unidades de CPU alocadas
-          Essential: "true"  # Essencial para a tarefa
-          Image: 'wordpress:latest'  # Imagem Docker a ser usada
-          Memory: '300'  # Tamanho da memória alocada
-          LogConfiguration:  # Configuração de registro
+          Cpu: "10" 
+          Essential: "true" 
+          Image: 'wordpress:latest' 
+          Memory: '300'  
+          LogConfiguration: 
             LogDriver: awslogs
             Options:
               awslogs-group: !Ref CloudWatchLogGroup  # Grupo de logs do CloudWatch
-              awslogs-region: !Ref 'AWS::Region'  # Região do AWS CloudWatch
-              awslogs-stream-prefix: wordpress  # Prefixo do fluxo de logs
+              awslogs-region: !Ref 'AWS::Region'  
+              awslogs-stream-prefix: wordpress  
           PortMappings:
-            - ContainerPort: 80  # Porta do contêiner
+            - ContainerPort: 80 
               Protocol: tcp  # Protocolo de rede
           MountPoints:
             - ContainerPath: /var/www/html  # Caminho dentro do contêiner
-              SourceVolume: EFSVolume  # Volume fonte
-              ReadOnly: false  # Montagem somente leitura (true/false)
+              SourceVolume: EFSVolume  
+              ReadOnly: false 
       Volumes:
-        - Name: EFSVolume  # Nome do volume
+        - Name: EFSVolume  
           EFSVolumeConfiguration:
-            FilesystemId: !Ref EFSFileSystem  # ID do sistema de arquivos EFS
+            FilesystemId: !Ref EFSFileSystem  
             AuthorizationConfig:
-              AccessPointId: !Ref EFSAccessPoint  # ID do ponto de acesso EFS
-              IAM: DISABLED  # IAM habilitado para autorização
+              AccessPointId: !Ref EFSAccessPoint  
+              IAM: DISABLED 
             TransitEncryption: ENABLED  # Criptografia de trânsito habilitada
   #####Elasctic Load Balancer########
   ECSALB:
     Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
     Properties:
-      Name: ECSALB  # Nome do balanceador de carga
-      Scheme: internet-facing  # Esquema de rede para acesso público
+      Name: ECSALB  
+      Scheme: internet-facing  # Esquema de rede
       LoadBalancerAttributes:
         - Key: idle_timeout.timeout_seconds
           Value: "30"  # Tempo limite de ociosidade em segundos
       Subnets:
-        - !Ref PublicSubnet1  # Sub-rede 1 para balanceamento de carga
-        - !Ref PublicSubnet2  # Sub-rede 2 para balanceamento de carga
+        - !Ref PublicSubnet1  
+        - !Ref PublicSubnet2  
       SecurityGroups:
-        - !Ref EcsSecurityGroup  # Grupo de segurança associado
+        - !Ref EcsSecurityGroup  
 
+  # Listener para o Application Load Balancer
   ALBListener:
     Type: "AWS::ElasticLoadBalancingV2::Listener"
-    DependsOn: ECSServiceRole  # Aguarda a criação do papel ECSServiceRole
+    DependsOn: ECSServiceRole 
     Properties:
       DefaultActions:
         - Type: forward
-          TargetGroupArn: !Ref ECSTG  # Encaminha o tráfego para o grupo de destino ECSTG
-      LoadBalancerArn: !Ref ECSALB  # Associa o ouvinte ao balanceador de carga ECSALB
-      Port: 80  # Porta que o ouvinte escuta
-      Protocol: HTTP  # Protocolo HTTP utilizado
+          TargetGroupArn: !Ref ECSTG 
+      LoadBalancerArn: !Ref ECSALB  
+      Port: 80  
+      Protocol: HTTP  
 
+  # Regra de roteamento para o listener Apllication Load Balancer
   ECSALBListenerRule:
     Type: "AWS::ElasticLoadBalancingV2::ListenerRule"
-    DependsOn: ALBListener  # Aguarda a criação do ouvinte ALBListener
+    DependsOn: ALBListener  
     Properties:
       Actions:
         - Type: forward
-          TargetGroupArn: !Ref ECSTG  # Encaminha o tráfego para o grupo de destino ECSTG
+          TargetGroupArn: !Ref ECSTG  
       Conditions:
-        - Field: path-pattern  # Condição baseada no padrão do caminho
+        - Field: path-pattern  
           Values:
-            - /  # Define o padrão do caminho como "/"
-      ListenerArn: !Ref ALBListener  # Associa a regra ao ouvinte ALBListener
-      Priority: 1  # Prioridade da regra no ouvinte
+            - /  
+      ListenerArn: !Ref ALBListener  
+      Priority: 1  
 
-  ECSTG:
+  #####Elasctic Load Balancer Target Group########
+  ECSTG: 
     DependsOn: ECSALB
     Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
     Properties:
-      HealthCheckIntervalSeconds: 10
+      HealthCheckIntervalSeconds: 10 # Intervalo entre verificações de integridade
       HealthCheckPath: /
-      HealthCheckProtocol: HTTP
+      HealthCheckProtocol: HTTP # Protocolo de verificação de integridade
       Matcher:
-        HttpCode: 200-299,302
-      HealthCheckTimeoutSeconds: 5
-      HealthyThresholdCount: 2
-      Name: ECSTG
+        HttpCode: 200-299,302 # Códigos de resposta válidos
+      HealthCheckTimeoutSeconds: 5 # Tempo limite de verificação de integridade
+      HealthyThresholdCount: 2 # Número de verificações de integridade consecutivas bem-sucedidas
+      Name: ECSTG 
       Port: 80
       Protocol: HTTP
       UnhealthyThresholdCount: 2
       VpcId: !Ref MyVPC
-    
+  
+  #####Auto Scaling########
   ECSAutoScalingGroup:
-    Type: "AWS::AutoScaling::AutoScalingGroup"
+    Type: "AWS::AutoScaling::AutoScalingGroup" 
     Properties:
       VPCZoneIdentifier:
         - !Ref PublicSubnet1
         - !Ref PublicSubnet2
       LaunchConfigurationName: !Ref ECSLaunchConfiguration
-      MinSize: 1
+      MinSize: 1  # Número mínimo de instâncias
       MaxSize: 5
-      DesiredCapacity: !Ref DesiredCapacity
+      DesiredCapacity: !Ref DesiredCapacity # Número desejado de instâncias
     CreationPolicy:
       ResourceSignal:
-        Timeout: PT15M
+        Timeout: PT15M # Tempo limite para criação da instância
     UpdatePolicy:
       AutoScalingRollingUpdate:
-        WillReplace: true
+        WillReplace: true # Substitui as instâncias antigas por novas
 
+  # Configuração de inicialização do EC2
   ECSLaunchConfiguration:
-    Type: "AWS::AutoScaling::LaunchConfiguration"
+    Type: "AWS::AutoScaling::LaunchConfiguration" 
     Properties:
-      ImageId: !FindInMap [AWSRegionToAMI, !Ref "AWS::Region", AMIID]
+      ImageId: !FindInMap [AWSRegionToAMI, !Ref "AWS::Region", AMIID] # AMI do EC2
       SecurityGroups:
         - !Ref EcsSecurityGroup
-      InstanceType: t2.micro
-      IamInstanceProfile: !Ref EC2InstanceProfile
+      InstanceType: t2.micro # Tipo de instância
+      IamInstanceProfile: !Ref EC2InstanceProfile 
       UserData: !Base64
         'Fn::Join':
           - ''
@@ -310,19 +278,21 @@ Resources:
             - !Ref 'AWS::Region'
             - |+
 
+  # Definição do serviço ECS
   Service:
-    Type: "AWS::ECS::Service"
+    Type: "AWS::ECS::Service" 
     DependsOn: ALBListener
     Properties:
       Cluster: !Ref ECSCluster
-      DesiredCount: 1
+      DesiredCount: 1 # Número desejado de instâncias
       LoadBalancers:
         - ContainerName: wordpress
           ContainerPort: 80
           TargetGroupArn: !Ref ECSTG
       Role: !Ref ECSServiceRole
-      TaskDefinition: !Ref ECSTaskDefinition
+      TaskDefinition: !Ref ECSTaskDefinition 
 
+  #Role para o serviço ECS
   ECSServiceRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -350,13 +320,14 @@ Resources:
                   - "ec2:AuthorizeSecurityGroupIngress"
                 Resource: "*"
 
+  #Target ECS
   ServiceScalingTarget:
     Type: "AWS::ApplicationAutoScaling::ScalableTarget"
     DependsOn: Service
     Properties:
-      MaxCapacity: 2
+      MaxCapacity: 5 
       MinCapacity: 1
-      ResourceId: !Join
+      ResourceId: !Join 
         - ""
         - - service/
           - !Ref ECSCluster
@@ -367,30 +338,32 @@ Resources:
       RoleARN: !GetAtt
         - AutoscalingRole
         - Arn
-      ScalableDimension: "ecs:service:DesiredCount"
-      ServiceNamespace: ecs
+      ScalableDimension: "ecs:service:DesiredCount" 
+      ServiceNamespace: ecs 
   
+  #Policy ECS
   ServiceScalingPolicy:
-    Type: "AWS::ApplicationAutoScaling::ScalingPolicy"
+    Type: "AWS::ApplicationAutoScaling::ScalingPolicy" 
     Properties:
-      PolicyName: AStepPolicy
+      PolicyName: AStepPolicy 
       PolicyType: StepScaling
       ScalingTargetId: !Ref ServiceScalingTarget
       StepScalingPolicyConfiguration:
         AdjustmentType: PercentChangeInCapacity
-        Cooldown: 60
-        MetricAggregationType: Average
+        Cooldown: 60 # Tempo de espera entre as ações de escalonamento
+        MetricAggregationType: Average 
         StepAdjustments:
-          - MetricIntervalLowerBound: 0
-            ScalingAdjustment: 200
+          - MetricIntervalLowerBound: 0 
+            ScalingAdjustment: 200 # Aumenta a capacidade em 200%
   
+  #Alarm ECS
   ALB500sAlarmScaleUp:
     Type: 'AWS::CloudWatch::Alarm'
     Properties:
-      EvaluationPeriods: '1'
+      EvaluationPeriods: '1' # Número de períodos de avaliação
       Statistic: Average
-      Threshold: '10'
-      AlarmDescription: Alarm if our ALB generates too many HTTP 500s.
+      Threshold: '10' # Limite de alarme
+      AlarmDescription: Alarm if our ALB generates too many HTTP 500s. 
       Period: '60'
       AlarmActions:
         - !Ref ServiceScalingPolicy
@@ -403,6 +376,7 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       MetricName: HTTPCode_ELB_5XX_Count
 
+  #Role para o EC2
   EC2Role:
     Type: "AWS::IAM::Role"
     Properties:
@@ -434,6 +408,7 @@ Resources:
                   - 'logs:PutLogEvents'
                 Resource: "*"
 
+  #Role para o Auto Scaling
   AutoscalingRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -459,22 +434,20 @@ Resources:
                   - "ecs:UpdateService"
                 Resource: "*"
 
+  #Profile para o EC2
   EC2InstanceProfile:
     Type: "AWS::IAM::InstanceProfile"
     Properties:
       Path: /
       Roles:
         - !Ref EC2Role
-
+        
+#Saidas da stack
 Outputs:
   ECSALBOuput:
-    Description: ECS ALB
     Value: !Join
       - ""
       - - "http://"
         - !GetAtt
           - ECSALB
           - DNSName
-  taskdef:
-    Description: ECS Task Definition
-    Value: !Ref ECSTaskDefinition
